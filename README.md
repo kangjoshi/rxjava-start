@@ -284,7 +284,60 @@
     - 통지할 데이터가 없을 경우 파라미터로 입력된 값을 통지한다
 5. sequenceEqual
     - 두 Observable이 동일한 순서로 동일한 갯수의 같은 데이터를 통지하는지 판단한다
+    
+###### doXXXX 함수
+1. doOnSubscribe
+    - 구독 시작시, 지정된 작업을 처리할 수 있다
+    - onSubscribe 이벤트가 발생하기 직전에 실행된다
+2. doOnNext
+    - 데이터가 통지되는 시점에 지정된 작업을 처리할 수 있다
+    - onNext 이벤트가 발생하기 직전에 실행된다
+3. doOnComplete
+    - 완료를 통지하는 시점에 지정된 작업을 처리할 수 있다
+    - onComplete 이벤트가 발생하기 직전에 실행된다
+4. doOnError
+    - 생산자가 에러를 통지하는 시점에 지정된 작업을 처리할 수 있다
+    - onError 이벤트가 발생하기 직전에 실행된다
+5. doOnEach
+    - doOnNext + doOnComplete + doOnError를 한번에 처리할 수 있다
+    - `Notification`(메타정보를 가지고 있는) 객체를 파라미터를 받아서 처리한
+6. doOnCancel/doOnDispose
+    - 구독 해지 시점에 지정된 작업을 처리할 수 있다
+7. doAfterNext
+    - 통지된 데이터가 소비자에 전달된 직후 호출되는 함수
+8. doOnTerminate (doOnComplete + doOnError)
+    - 완료 또는 에러가 통지될 때 호출
+9. doAfterTerminate  
+    - 완료 또는 에러가 통지된 후 호출
+10. doFinally (doOnCancel/doOnDispose + doOnTerminate)
+    - 구독이 취소 된 후, 완료 또는 에러가 통지된 후 호출    
+11. doOnLifecycle (doOnSubscribe + doOnCancel/doOnDispose)
+    - 소비자가 구독할 때 또는 구독을 해지할 때 호출
+            
+### 스케쥴러
+- RxJava 비동기 프로그래밍을 위한 쓰레드를 관리하는 관리자
+- 스케쥴러를 이용하여 어떤 쓰레드에서 무엇을 처리할 지 제어할 수 있다. (즉 스케쥴러를 이용하여 데이터를 통지하는 쪽과 데이터를 처리하는 쪽 쓰레드를 별도로 지정 가능)
+- 스케쥴러를 통해 쓰레드를 위한 코드의 간결성 및 쓰레드 관리의 복잡함을 줄일 수 있다
+- `subscribeOn(Scheduler)` : 생산자쪽의 데이터 흐름을 제어하기 위해 사용
+- `observeOn(Scheduler)` : 소비자쪽에서 전달 받은 데이터를 처리를 제어하기 위해 사용, (여러개 지정할 수 있다)
 
+##### 스케쥴러의 종류
+1. Schedulers.io()
+    - I/O 처리 작업을 할 때 사용하는 스케쥴러 (네트워크 요청 처리, 각종 입/출력, 데이터 베이스 쿼리등)
+    - 쓰레드 풀에서 쓰레드를 가져오거나 가져올 쓰레드가 없다면 새로운 쓰레드를 생성한다
+2. Schedulers.computation()
+    - 논리적인 연산 처리시 사용 (계산)
+    - CPU 코어의 물리적 쓰레드 수를 넘지 않는 범위에서 쓰레드 생성 (계산은 대기 시간이 없으므로)
+3. Schedulers.newThread()
+    - 요청시마다 매번 쓰레드를 생성한다 (재사용 되지 않는다)
+    - 비용이 크므로 사용하지 않는게 좋을듯    
+4. Schedulers.trampoline()
+    - 현재 실행되고 있는 쓰레드에 Queue를 생성하여 처리할 작업들을 순서대로 처리
+5. Schedulers.single()
+    - 단일 쓰레드를 생성하여 처리 작업을 진행한다
+6. Schedulers.from(executor)
+    - Executor를 사용하여 생성한 쓰레드를 사용한다
+    - 자주 사용되지 않는다
 
 ###### 테스트
 1. blocking 함수
@@ -292,5 +345,9 @@
     1. blockingFirst
         - 생산자가 통지한 첫번째 데이터를 반환
         - 통지된 데이터가 없을 경우 예외가 발생된다
+        
+        
+###### Reference
+        
 
     

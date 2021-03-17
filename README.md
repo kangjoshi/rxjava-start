@@ -132,3 +132,165 @@
 4. switchMap
     - concatMap과 마찬가지로 받은 데이터를 변환하여 새로운 Observable로 반환한다
     - switchMap도 concatMap처럼 순서를 보장하지만 새로운 데이터가 통지되면 현재 처리중이던 작업을 바로 중단하고 새로운 작업을 시작한다
+    - 키보드 입력에 따른 검색과 같이 이전 데이터의 처리중 새로운 데이터가 들어올 경우 이전 데이터 처리가 의미 없을때 사용하면 성능 향상 효과가 있다
+5. groupBy
+    - 하나의 Observable을 여러개의 새로운 `GroupedByObservable`로 만든다
+    - 각각 그룹으로 묶이는 것이 아닌 각각의 데이터들이 그룹에 해당하는 Key를 가지게 된다 key는 `groupedObservable.getKey()`로 접근 가능
+6. toList
+    - 통지되는 데이터를 모두 List에 담다 통지한다 - 단건의 리스트이므로 `Single`로 반환된다
+7. toMap
+    - 통지되는 데이터를 Key & Value 쌍으로 변환되어 Map에 담긴다 - 단건의 Map이므로 `Single`로 반환된다
+    - ```java
+      String[] alphabets = {"a-Alpha", "b-Beta", "c-Charlie", "d-Delta"};
+        
+      Single<Map<String, String>> single = Observable.fromArray(alphabets)
+                                            .toMap(data -> data.split("-")[0], data -> data.split("-")[1]); // 첫번째 파라미터는 key가 되고 두번째 파라미터가 value가 된다. 만약 두번째 파라미터를 넘기지 않는다면 data가 value가 된다
+                
+      single.subscribe(System.out::println);
+      ```
+      
+###### 데이터 결합 연산자
+1. merge
+    - 다수의 Observable에서 통지된 데이터를 받아 하나의 Observable로 통지한다
+    - 통지 시점이 빠른 Observable의 데이터부터 순차적으로 통지되고 통지 시점이 같을 경우 merge() 함수의 파라미터로 먼저 지정된 Observable의 데이터부터 통지된다
+    - ```java
+      Observable<Long> observable1 = Observable.interval(200L, TimeUnit.MILLISECONDS)
+                .take(5);
+
+      Observable<Long> observable2 = Observable.interval(400L, TimeUnit.MILLISECONDS)
+                .take(5)
+                .map(num -> num + 1000);
+
+      Observable.merge(observable1, observable2)
+                .subscribe(System.out::println);
+      ```
+2. concat
+    - 다수의 Observable에서 통지된 데이터를 받아 하나의 Observable로 통지한다
+    - 통지 시점과 상관 없이 파라미터로 전달된 순서대로 하나의 Observable에서 통지가 끝나면 다음 Observable에서 연이어 통지된다
+2. zip
+    - 다수의 Observable에서 통지된 데이터를 받아 하나의 Observable로 통지한다
+    - 각 Observable에서 통지된 데이터가 모두 모이면 각 Observable에서 동일한 index(순서)의 데이터로 새로운 데이터를 생성한 후 통지한다
+    - 통지하는 데이터 개수가 가장 적은 Observable의 통지 시점에 완료 통지 시점을 맞춘다
+    - ```java
+      Observable<Long> observable1 = Observable.interval(200L, TimeUnit.MILLISECONDS)
+                    .take(4);
+    
+      Observable<Long> observable2 = Observable.interval(400L, TimeUnit.MILLISECONDS)
+                    .take(6);
+      
+      // 가장 적은 통지 횟수를 가진 observable1이 4이므로 4개의 데이터 통지 후 완료된다
+      Observable.zip(observable1, observable2, (data1, data2) -> data1 + data2)
+                    .subscribe(System.out::println);
+    
+      Thread.sleep(3000L);
+      ```
+3. combineLatest
+    - 다수의 Observable에서 통지된 데이터를 받아 하나의 Observable로 통지한다
+    - 각 Observable에서 데이터를 통지할 때 마다 모든 Observable에서 마지막으로 통지한 각 데이터를 함수형 인터페이스에 전달하고, 새로운 데이터를 생성해 통지한다
+    
+###### 에러 처리 연산자
+1. onErrorReturn
+    - 에러가 발생했을  에러를 의미하는 데이터로 대체한다
+    - onErrorReturn()을 호출하면 onError 이벤트는 발생하지 않는다
+    - ```java
+      Observable.just(5)
+                .flatMap(
+                    num -> Observable.interval(200L, TimeUnit.MILLISECONDS)
+                                        .take(5)
+                                        .map(i -> num / i)
+                                        .onErrorReturn(exception -> {
+                                            if (exception instanceof ArithmeticException)
+                                                System.err.println("계산 처리 에러 발생");
+        
+                                            return -1L;
+                                        })
+                ).subscribe(
+                      System.out::println,                    // onNext로 통지 됨 
+                      System.err::println,                    // onError는 처리되지 않음
+                      () -> System.out.println("complete"));
+                Thread.sleep(1000L);
+      ```
+2. onErrorResumeNext
+    - 에러가 발생했을 때 에러를 의미하는 Observable로 대체한다
+    - Observable로 대체되기 때문에 추가적인 처리가 가능하다
+3. retry
+    - 데이터 통지 중 에러가 발생 했을 때, 데이터 통지를 재시도 한다
+    - 즉, onError 이벤트가 발생하면 subscribe()를 다시 호출하여 재구독한다
+    - 에러가 발생한 시점에 통지에 실패한 데이터만 다시 시도 하는것이 아닌 전체 데이터가 재구독된다
+    - ```java
+      Observable.just(5)
+                .flatMap(
+                    num -> Observable.interval(200L, TimeUnit.MILLISECONDS)
+                                .take(5)
+                                .map(i -> {
+                                    long result;
+                                    try {
+                                        result = num / i;
+                                    } catch (ArithmeticException exception) {
+                                        System.err.println(exception.getMessage());
+                                        throw  exception;
+                                    }
+                                    return result;
+                                })
+                                .retry((retryCount, ex) -> {
+                                      System.err.println("재시도 횟수 : " + retryCount);
+                                      Thread.sleep(1000L);    // 재 시도시 지연시간 부여
+                                      return retryCount < 5 ? true : false; // 최대 5번 시도 하도록
+                                })
+                                .onErrorReturn(throwable -> -1L) // 최대 시도 이후에도 계속 실패한다면 에러 처리
+                        ).subscribe(System.out::println, System.err::println, () -> System.out.println("complete"));
+     
+      Thread.sleep(5000L);
+      ```
+      
+###### 유틸리티 연산자
+1. delay
+    - 설정한 시간 만큼 소바자쪽으로의 데이터 전달(`onNext()`)을 지연한다
+2. delaySubscription
+    - 설정한 시간 만큼 구독을 미룬다. 즉 소비자가 구독을 해도 구독 시점 자체가 지연된다
+3. timeout
+    - 각각의 데이터 통지시 지정된 시간안에 통지가 되지 않으면 에러를 통지한다
+    - 에러 통지 시 전달되는 에러 객체는 `TimeOutException`이다
+4. imteInterval
+    - 각각의 데이터가 통지되는데 걸린 시간을 통지한다
+5. materialize
+    - 통지된 데이터와 통지된 데이터의 통지 타입 자체(메타 데이터가 포함되어 있는)를 Notification 객체에 담고 이 객체를 통지한다
+    - ```java
+      Observable.just(1, 2, 3, 4, 5, 6)
+                    .materialize()
+                    .subscribe(
+                        notification -> {
+                            String notificationType = notification.isOnNext() ? "OnNext : " : notification.isOnError() ? "onError" : "onComplte";
+                            System.out.println(notificationType + " : " + notification.getValue());
+                        }
+                    );
+        
+      Thread.sleep(5000L);
+      ```
+6. dematerialize
+    - materialize의 반대, 통지 타입이 통지되면 데이터만 통지한다
+    - materialize를 사용하여 에러가 발생할 경우 구체적인 처리를 하고 dematerialize를 이용하여 값을 다시 넘기는 방법으로 사용할 수 있다
+    
+###### 조건과 불린 연산자
+1. all
+    - 통지된 데이터가 모두 조건에 판단하여 true 또는 false가 통지된다
+    - 결과 값을 한번만 통지하면 되기 때문에 Single로 반환된다
+2. amb
+    - 여러개의 Observable 중에서 최초 통지 시점이 가장 빠른 Observable의 데이터만 통지되고 나머지는 무시된다
+3. contains
+    - 통지된 데이터중 조건에 해당하는 데이터 여부를 판단하여 true 또는 false가 통지된다
+    - 결과 값을 한번만 통지하면 되기 때문에 Single로 반환된다
+4. defaultIfEmpty
+    - 통지할 데이터가 없을 경우 파라미터로 입력된 값을 통지한다
+5. sequenceEqual
+    - 두 Observable이 동일한 순서로 동일한 갯수의 같은 데이터를 통지하는지 판단한다
+
+
+###### 테스트
+1. blocking 함수
+    - 비동기 처리 결과를 테스트하기 위해 현재 쓰레드는 호출 대상 쓰레드의 실행 결과를 반환 받을 때 까지 대기할 수 있어야 한다.
+    1. blockingFirst
+        - 생산자가 통지한 첫번째 데이터를 반환
+        - 통지된 데이터가 없을 경우 예외가 발생된다
+
+    
